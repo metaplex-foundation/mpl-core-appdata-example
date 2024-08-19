@@ -1,5 +1,5 @@
 
-## Event Ticketing Platform for MPL Core leveraging the Appdata Plugin
+# Event Ticketing Platform for MPL Core leveraging the Appdata Plugin
 
 This Anchor program leverages the [MPL Core](https://github.com/metaplex-foundation/mpl-core) AppData Plugin to create a ticketing solution that could be used to generate tickets as digital assets and verified by an external source of trust other than the issuer, like for example a venue manager.
 
