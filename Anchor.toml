@@ -11,8 +11,8 @@ mpl_core_appdata_example = "BicWwtfJJAzWfAp2hzpdnyvvjB5TKnikAXxLVZbHcM2U"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
-wallet = "~/.config/solana/devnet.json"
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

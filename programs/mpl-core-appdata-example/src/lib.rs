@@ -1,19 +1,19 @@
 use anchor_lang::prelude::*;
 
 use mpl_core::{
-    ID as MPL_CORE_ID,
-    fetch_external_plugin_adapter_data_info, 
-    fetch_plugin, 
-    instructions::{CreateCollectionV2CpiBuilder, CreateV2CpiBuilder, WriteExternalPluginAdapterDataV1CpiBuilder, UpdatePluginV1CpiBuilder}, 
-    accounts::{BaseAssetV1, BaseCollectionV1}, 
+    accounts::{BaseAssetV1, BaseCollectionV1},
+    fetch_external_plugin_adapter_data_info, fetch_plugin,
+    instructions::{
+        CreateCollectionV2CpiBuilder, CreateV2CpiBuilder, UpdatePluginV1CpiBuilder,
+        WriteExternalPluginAdapterDataV1CpiBuilder,
+    },
     types::{
-        AppDataInitInfo, Attribute, Attributes, 
-        ExternalPluginAdapterInitInfo, ExternalPluginAdapterKey, 
-        ExternalPluginAdapterSchema, PermanentBurnDelegate, UpdateAuthority,
-        PermanentFreezeDelegate, PermanentTransferDelegate, Plugin, 
-        PluginAuthority, PluginAuthorityPair, PluginType
-    }, 
-
+        AppDataInitInfo, Attribute, Attributes, ExternalPluginAdapterInitInfo,
+        ExternalPluginAdapterKey, ExternalPluginAdapterSchema, PermanentBurnDelegate,
+        PermanentFreezeDelegate, PermanentTransferDelegate, Plugin, PluginAuthority,
+        PluginAuthorityPair, PluginType, UpdateAuthority,
+    },
+    ID as MPL_CORE_ID,
 };
 
 declare_id!("BicWwtfJJAzWfAp2hzpdnyvvjB5TKnikAXxLVZbHcM2U");
@@ -53,38 +53,60 @@ pub mod mpl_core_appdata_example {
     }
 
     pub fn create_event(ctx: Context<CreateEvent>, args: CreateEventArgs) -> Result<()> {
-
         // Add an Attribute Plugin that will hold the event details
         let mut collection_plugin: Vec<PluginAuthorityPair> = vec![];
 
         let attribute_list: Vec<Attribute> = vec![
-            Attribute { key: "City".to_string(), value: args.city },
-            Attribute { key: "Venue".to_string(), value: args.venue },
-            Attribute { key: "Artist".to_string(), value: args.artist },
-            Attribute { key: "Date".to_string(), value: args.date },
-            Attribute { key: "Time".to_string(), value: args.time },
-            Attribute { key: "Capacity".to_string(), value: args.capacity.to_string() }
+            Attribute {
+                key: "City".to_string(),
+                value: args.city,
+            },
+            Attribute {
+                key: "Venue".to_string(),
+                value: args.venue,
+            },
+            Attribute {
+                key: "Artist".to_string(),
+                value: args.artist,
+            },
+            Attribute {
+                key: "Date".to_string(),
+                value: args.date,
+            },
+            Attribute {
+                key: "Time".to_string(),
+                value: args.time,
+            },
+            Attribute {
+                key: "Capacity".to_string(),
+                value: args.capacity.to_string(),
+            },
         ];
-        collection_plugin.push(PluginAuthorityPair { plugin: Plugin::Attributes(Attributes { attribute_list }), authority: Some(PluginAuthority::UpdateAuthority) });
-        
-        // Create the Collection that will hold the tickets 
+        collection_plugin.push(PluginAuthorityPair {
+            plugin: Plugin::Attributes(Attributes { attribute_list }),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        });
+
+        // Create the Collection that will hold the tickets
         CreateCollectionV2CpiBuilder::new(&ctx.accounts.mpl_core_program.to_account_info())
-        .collection(&ctx.accounts.event.to_account_info())
-        .update_authority(Some(&ctx.accounts.manager.to_account_info()))
-        .payer(&ctx.accounts.payer.to_account_info())
-        .system_program(&ctx.accounts.system_program.to_account_info())
-        .name(args.name)
-        .uri(args.uri)
-        .plugins(collection_plugin)
-        .invoke()?;
+            .collection(&ctx.accounts.event.to_account_info())
+            .update_authority(Some(&ctx.accounts.manager.to_account_info()))
+            .payer(&ctx.accounts.payer.to_account_info())
+            .system_program(&ctx.accounts.system_program.to_account_info())
+            .name(args.name)
+            .uri(args.uri)
+            .plugins(collection_plugin)
+            .invoke()?;
 
         Ok(())
     }
 
     pub fn create_ticket(ctx: Context<CreateTicket>, args: CreateTicketArgs) -> Result<()> {
-
         // Check that the maximum number of tickets has not been reached yet
-        let (_, collection_attribute_list, _) = fetch_plugin::<BaseCollectionV1, Attributes>(&ctx.accounts.event.to_account_info(), PluginType::Attributes)?;
+        let (_, collection_attribute_list, _) = fetch_plugin::<BaseCollectionV1, Attributes>(
+            &ctx.accounts.event.to_account_info(),
+            PluginType::Attributes,
+        )?;
 
         // Search for the Capacity attribute
         let capacity_attribute = collection_attribute_list
@@ -99,79 +121,130 @@ pub mod mpl_core_appdata_example {
             .parse::<u32>()
             .map_err(|_| TicketError::NumericalOverflow)?;
 
-        require!(ctx.accounts.event.num_minted < capacity, TicketError::MaximumTicketsReached);
+        require!(
+            ctx.accounts.event.num_minted < capacity,
+            TicketError::MaximumTicketsReached
+        );
 
         // Add an Attribute Plugin that will hold the ticket details
         let mut ticket_plugin: Vec<PluginAuthorityPair> = vec![];
-        
-        let attribute_list: Vec<Attribute> = vec![
-            Attribute { key: "Ticket Number".to_string(), value: ctx.accounts.event.num_minted.checked_add(1).ok_or(TicketError::NumericalOverflow)?.to_string() },
-            Attribute { key: "Hall".to_string(), value: args.hall },
-            Attribute { key: "Section".to_string(), value: args.section },
-            Attribute { key: "Row".to_string(), value: args.row },
-            Attribute { key: "Seat".to_string(), value: args.seat },
-            Attribute { key: "Price".to_string(), value: args.price.to_string() }
-        ];
-        ticket_plugin.push(PluginAuthorityPair { plugin: Plugin::Attributes(Attributes { attribute_list }), authority: Some(PluginAuthority::UpdateAuthority) });
-        ticket_plugin.push(PluginAuthorityPair { plugin: Plugin::PermanentFreezeDelegate( PermanentFreezeDelegate { frozen: false }), authority: Some(PluginAuthority::UpdateAuthority) });
-        ticket_plugin.push(PluginAuthorityPair { plugin: Plugin::PermanentBurnDelegate( PermanentBurnDelegate {}), authority: Some(PluginAuthority::UpdateAuthority) });
-        ticket_plugin.push(PluginAuthorityPair { plugin: Plugin::PermanentTransferDelegate( PermanentTransferDelegate {}), authority: Some(PluginAuthority::UpdateAuthority) });
 
-        let mut ticket_external_plugin: Vec<ExternalPluginAdapterInitInfo> = vec![];
-        
-        ticket_external_plugin.push(ExternalPluginAdapterInitInfo::AppData(
-            AppDataInitInfo {
+        let attribute_list: Vec<Attribute> = vec![
+            Attribute {
+                key: "Ticket Number".to_string(),
+                value: ctx
+                    .accounts
+                    .event
+                    .num_minted
+                    .checked_add(1)
+                    .ok_or(TicketError::NumericalOverflow)?
+                    .to_string(),
+            },
+            Attribute {
+                key: "Hall".to_string(),
+                value: args.hall,
+            },
+            Attribute {
+                key: "Section".to_string(),
+                value: args.section,
+            },
+            Attribute {
+                key: "Row".to_string(),
+                value: args.row,
+            },
+            Attribute {
+                key: "Seat".to_string(),
+                value: args.seat,
+            },
+            Attribute {
+                key: "Price".to_string(),
+                value: args.price.to_string(),
+            },
+        ];
+        ticket_plugin.push(PluginAuthorityPair {
+            plugin: Plugin::Attributes(Attributes { attribute_list }),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        });
+        ticket_plugin.push(PluginAuthorityPair {
+            plugin: Plugin::PermanentFreezeDelegate(PermanentFreezeDelegate { frozen: false }),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        });
+        ticket_plugin.push(PluginAuthorityPair {
+            plugin: Plugin::PermanentBurnDelegate(PermanentBurnDelegate {}),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        });
+        ticket_plugin.push(PluginAuthorityPair {
+            plugin: Plugin::PermanentTransferDelegate(PermanentTransferDelegate {}),
+            authority: Some(PluginAuthority::UpdateAuthority),
+        });
+
+        let ticket_external_plugin: Vec<ExternalPluginAdapterInitInfo> =
+            vec![ExternalPluginAdapterInitInfo::AppData(AppDataInitInfo {
                 init_plugin_authority: Some(PluginAuthority::UpdateAuthority),
-                data_authority: PluginAuthority::Address{ address: args.venue_authority },
+                data_authority: PluginAuthority::Address {
+                    address: args.venue_authority,
+                },
                 schema: Some(ExternalPluginAdapterSchema::Binary),
-            }
-        ));
+            })];
 
         let signer_seeds = &[b"manager".as_ref(), &[ctx.accounts.manager.bump]];
 
         // Create the Ticket
         CreateV2CpiBuilder::new(&ctx.accounts.mpl_core_program.to_account_info())
-        .asset(&ctx.accounts.ticket.to_account_info())
-        .collection(Some(&ctx.accounts.event.to_account_info()))
-        .payer(&ctx.accounts.payer.to_account_info())
-        .authority(Some(&ctx.accounts.manager.to_account_info()))
-        .owner(Some(&ctx.accounts.signer.to_account_info()))
-        .system_program(&ctx.accounts.system_program.to_account_info())
-        .name(args.name)
-        .uri(args.uri)
-        .plugins(ticket_plugin)
-        .external_plugin_adapters(ticket_external_plugin)
-        .invoke_signed(&[signer_seeds])?;
+            .asset(&ctx.accounts.ticket.to_account_info())
+            .collection(Some(&ctx.accounts.event.to_account_info()))
+            .payer(&ctx.accounts.payer.to_account_info())
+            .authority(Some(&ctx.accounts.manager.to_account_info()))
+            .owner(Some(&ctx.accounts.signer.to_account_info()))
+            .system_program(&ctx.accounts.system_program.to_account_info())
+            .name(args.name)
+            .uri(args.uri)
+            .plugins(ticket_plugin)
+            .external_plugin_adapters(ticket_external_plugin)
+            .invoke_signed(&[signer_seeds])?;
 
         Ok(())
     }
 
     pub fn scan_ticket(ctx: Context<ScanTicket>) -> Result<()> {
-
-        let (_, app_data_length) = fetch_external_plugin_adapter_data_info::<BaseAssetV1>(&ctx.accounts.ticket.to_account_info(), None, &ExternalPluginAdapterKey::AppData(PluginAuthority::Address { address: ctx.accounts.signer.key() }))?;
+        let (_, app_data_length) = fetch_external_plugin_adapter_data_info::<BaseAssetV1>(
+            &ctx.accounts.ticket.to_account_info(),
+            None,
+            &ExternalPluginAdapterKey::AppData(PluginAuthority::Address {
+                address: ctx.accounts.signer.key(),
+            }),
+        )?;
         require!(app_data_length == 0, TicketError::AlreadyScanned);
 
         let data: Vec<u8> = "Scanned".as_bytes().to_vec();
 
-        WriteExternalPluginAdapterDataV1CpiBuilder::new(&ctx.accounts.mpl_core_program.to_account_info())
+        WriteExternalPluginAdapterDataV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
         .asset(&ctx.accounts.ticket.to_account_info())
         .collection(Some(&ctx.accounts.event.to_account_info()))
         .payer(&ctx.accounts.payer.to_account_info())
         .system_program(&ctx.accounts.system_program.to_account_info())
-        .key(ExternalPluginAdapterKey::AppData(PluginAuthority::Address { address: ctx.accounts.signer.key() }))
+        .key(ExternalPluginAdapterKey::AppData(
+            PluginAuthority::Address {
+                address: ctx.accounts.signer.key(),
+            },
+        ))
         .data(data)
         .invoke()?;
 
         let signer_seeds = &[b"manager".as_ref(), &[ctx.accounts.manager.bump]];
 
         UpdatePluginV1CpiBuilder::new(&ctx.accounts.mpl_core_program.to_account_info())
-        .asset(&ctx.accounts.ticket.to_account_info())
-        .collection(Some(&ctx.accounts.event.to_account_info()))
-        .payer(&ctx.accounts.payer.to_account_info())
-        .authority(Some(&ctx.accounts.manager.to_account_info()))
-        .system_program(&ctx.accounts.system_program.to_account_info())
-        .plugin(Plugin::PermanentFreezeDelegate(PermanentFreezeDelegate { frozen: true }))
-        .invoke_signed(&[signer_seeds])?;
+            .asset(&ctx.accounts.ticket.to_account_info())
+            .collection(Some(&ctx.accounts.event.to_account_info()))
+            .payer(&ctx.accounts.payer.to_account_info())
+            .authority(Some(&ctx.accounts.manager.to_account_info()))
+            .system_program(&ctx.accounts.system_program.to_account_info())
+            .plugin(Plugin::PermanentFreezeDelegate(PermanentFreezeDelegate {
+                frozen: true,
+            }))
+            .invoke_signed(&[signer_seeds])?;
 
         Ok(())
     }
@@ -208,7 +281,7 @@ pub struct CreateEvent<'info> {
     pub system_program: Program<'info, System>,
     #[account(address = MPL_CORE_ID)]
     /// CHECK: This is checked by the address constraint
-    pub mpl_core_program: UncheckedAccount<'info>
+    pub mpl_core_program: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -231,7 +304,7 @@ pub struct CreateTicket<'info> {
     pub system_program: Program<'info, System>,
     #[account(address = MPL_CORE_ID)]
     /// CHECK: This is checked by the address constraint
-    pub mpl_core_program: UncheckedAccount<'info>
+    pub mpl_core_program: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -284,4 +357,3 @@ pub enum TicketError {
     #[msg("The ticket has already been scanned")]
     AlreadyScanned,
 }
-
