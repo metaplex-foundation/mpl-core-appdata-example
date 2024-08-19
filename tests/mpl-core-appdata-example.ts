@@ -14,7 +14,7 @@ describe("mpl-core-appdata-example", () => {
 
   const manager = PublicKey.createProgramAddressSync([Buffer.from("manager")], program.programId)[0];
 
-  xit("Setup Manager", async () => {
+  it("Setup Manager", async () => {
     const tx = await program.methods.setupManager()
     .accountsPartial({
       signer: wallet.publicKey,
