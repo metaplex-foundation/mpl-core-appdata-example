@@ -218,12 +218,14 @@ pub mod mpl_core_appdata_example {
 
         let data: Vec<u8> = "Scanned".as_bytes().to_vec();
 
+        // The venue authority is the `signer` of this instruction.
         WriteExternalPluginAdapterDataV1CpiBuilder::new(
             &ctx.accounts.mpl_core_program.to_account_info(),
         )
         .asset(&ctx.accounts.ticket.to_account_info())
         .collection(Some(&ctx.accounts.event.to_account_info()))
         .payer(&ctx.accounts.payer.to_account_info())
+        .authority(Some(&ctx.accounts.signer.to_account_info()))
         .system_program(&ctx.accounts.system_program.to_account_info())
         .key(ExternalPluginAdapterKey::AppData(
             PluginAuthority::Address {

@@ -57,6 +57,8 @@ describe("mpl-core-appdata-example", () => {
     console.log(tx);
   });
 
+  const venueAuthority = Keypair.generate();
+
   const createTicketArgs = {
     name: "Ticket 1",
     uri: "https://example.com",
@@ -65,7 +67,7 @@ describe("mpl-core-appdata-example", () => {
     row: "Row",
     seat: "Seat",
     price: new BN(1000),
-    venueAuthority: wallet.publicKey,
+    venueAuthority: venueAuthority.publicKey,
   }
 
   const ticket = Keypair.generate();
@@ -91,7 +93,7 @@ describe("mpl-core-appdata-example", () => {
     const tx = await program.methods.scanTicket()
     .accountsPartial({
       owner: wallet.publicKey,
-      signer: wallet.publicKey,
+      signer: venueAuthority.publicKey,
       payer: wallet.publicKey,
       manager,
       ticket: ticket.publicKey,
@@ -99,7 +101,7 @@ describe("mpl-core-appdata-example", () => {
       systemProgram: anchor.web3.SystemProgram.programId,
       mplCoreProgram: coreProgram,
     })
-    .signers([wallet.payer])
+    .signers([wallet.payer, venueAuthority])
     .rpc();
 
     console.log(tx);
